@@ -16,7 +16,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'zscreener-backend' });
 });
 

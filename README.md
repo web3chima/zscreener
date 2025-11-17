@@ -16,7 +16,6 @@ zscreener/
 │   ├── frontend/     # React web application
 │   ├── backend/      # Node.js Express API server
 │   └── sdk/          # Zscreener SDK for developers
-├── .kiro/            # Kiro specs and configuration
 └── package.json      # Root package configuration
 ```
 
