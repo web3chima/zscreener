@@ -94,77 +94,12 @@ export class NilccService {
 
       return jobId;
     } catch (error) {
-      // In mock mode, we'll simulate the computation locally
-      console.warn('Nilcc submission failed, using mock mode:', error);
-      
-      // Simulate computation
-      this.simulateComputation(job, request);
-      
-      return jobId;
+      console.error('Nilcc submission failed:', error);
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : 'Unknown error';
+      this.jobs.set(jobId, job);
+      throw error;
     }
-  }
-
-  /**
-   * Simulate computation locally (for mock mode)
-   */
-  private async simulateComputation(job: ComputeJob, request: ComputeRequest): Promise<void> {
-    // Simulate processing delay
-    setTimeout(() => {
-      try {
-        let result: any;
-
-        // Extract values from inputs
-        const values = request.inputs
-          .filter(input => input.type === 'inline' && input.value !== undefined)
-          .map(input => input.value);
-
-        // Perform operation based on type
-        switch (request.operation) {
-          case 'sum':
-            result = values.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
-            break;
-          case 'average':
-            result = values.length > 0 
-              ? values.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0) / values.length
-              : 0;
-            break;
-          case 'count':
-            result = values.length;
-            break;
-          case 'max':
-            result = values.length > 0 ? Math.max(...values.filter(v => typeof v === 'number')) : null;
-            break;
-          case 'min':
-            result = values.length > 0 ? Math.min(...values.filter(v => typeof v === 'number')) : null;
-            break;
-          case 'aggregate':
-            result = {
-              count: values.length,
-              sum: values.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0),
-              average: values.length > 0 
-                ? values.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0) / values.length
-                : 0,
-            };
-            break;
-          case 'filter':
-            const filterFn = request.parameters?.filterFunction;
-            result = filterFn ? values.filter(filterFn) : values;
-            break;
-          default:
-            result = { message: 'Custom computation completed', inputCount: values.length };
-        }
-
-        job.status = 'completed';
-        job.completedAt = Date.now();
-        job.result = result;
-        this.jobs.set(job.jobId, job);
-      } catch (error) {
-        job.status = 'failed';
-        job.completedAt = Date.now();
-        job.error = error instanceof Error ? error.message : 'Unknown error';
-        this.jobs.set(job.jobId, job);
-      }
-    }, 1000); // Simulate 1 second processing time
   }
 
   /**

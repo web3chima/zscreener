@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { pool } from '../config/database.js';
 import { redisClient } from '../config/redis.js';
+import { zcashRPCClient } from '../services/zcash-rpc-client.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ interface NetworkStats {
   shieldedPoolSize: number;
   last24hVolume: number;
   last24hTransactions: number;
+  networkHashrate?: number; // Added for live stats
 }
 
 interface ShieldedPoolMetrics {
@@ -50,6 +52,22 @@ router.get('/network-stats', async (_req: Request, res: Response, next: NextFunc
         cached: true,
       });
       return;
+    }
+
+    // Get live Network Hashrate from Zcash Node
+    let networkHashrate = 0;
+    try {
+      // Try getnetworksolps first
+      networkHashrate = await zcashRPCClient.call<number>('getnetworksolps', []);
+    } catch (e) {
+      console.warn('Failed to fetch getnetworksolps:', e);
+      try {
+        // Fallback to getmininginfo if available
+        const miningInfo = await zcashRPCClient.call<any>('getmininginfo', []);
+        networkHashrate = miningInfo.networksolps || 0;
+      } catch (e2) {
+        console.warn('Failed to fetch mining info:', e2);
+      }
     }
 
     // Get total shielded transactions
@@ -102,10 +120,11 @@ router.get('/network-stats', async (_req: Request, res: Response, next: NextFunc
       last24hVolume,
       last24hTransactions,
       latestBlock,
+      networkHashrate,
     };
 
-    // Cache for 5 minutes
-    await redisClient.setex(cacheKey, 300, JSON.stringify(stats));
+    // Cache for 2 minutes (lower cache time for live hashrate)
+    await redisClient.setex(cacheKey, 120, JSON.stringify(stats));
 
     res.json({
       success: true,

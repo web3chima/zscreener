@@ -119,8 +119,9 @@ export class ZcashRPCClient {
 
   /**
    * Make an RPC call with retry logic
+   * Changed from private to public for external usage
    */
-  private async call<T = any>(
+  public async call<T = any>(
     method: string,
     params: any[] = []
   ): Promise<T> {
@@ -150,12 +151,10 @@ export class ZcashRPCClient {
       } catch (error: any) {
         lastError = error;
 
-        // Don't retry on certain errors
         if (error instanceof ZcashRPCError) {
           throw error;
         }
 
-        // Don't retry on client errors (4xx)
         if (error.response && error.response.status >= 400 && error.response.status < 500) {
           throw new ZcashRPCError(
             `RPC request failed: ${error.message}`,
@@ -165,7 +164,6 @@ export class ZcashRPCClient {
           );
         }
 
-        // Retry on network errors or server errors (5xx)
         if (attempt < this.config.maxRetries) {
           const delay = this.config.retryDelay * attempt;
           console.warn(
@@ -175,7 +173,6 @@ export class ZcashRPCClient {
           continue;
         }
 
-        // Max retries exceeded
         throw new ZcashRPCError(
           `RPC call to ${method} failed after ${this.config.maxRetries} attempts: ${error.message}`,
           'RPC_MAX_RETRIES_EXCEEDED',
@@ -188,58 +185,34 @@ export class ZcashRPCClient {
     throw lastError || new Error('Unexpected error in RPC call');
   }
 
-  /**
-   * Sleep utility for retry delays
-   */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Get block information by hash or height
-   */
   async getBlock(hashOrHeight: string | number, verbosity: number = 1): Promise<BlockInfo> {
     return this.call<BlockInfo>('getblock', [hashOrHeight, verbosity]);
   }
 
-  /**
-   * Get raw transaction data
-   */
   async getRawTransaction(txid: string, verbose: boolean = true): Promise<RawTransaction> {
     return this.call<RawTransaction>('getrawtransaction', [txid, verbose ? 1 : 0]);
   }
 
-  /**
-   * Get blockchain information
-   */
   async getBlockchainInfo(): Promise<BlockchainInfo> {
     return this.call<BlockchainInfo>('getblockchaininfo', []);
   }
 
-  /**
-   * Get block hash by height
-   */
   async getBlockHash(height: number): Promise<string> {
     return this.call<string>('getblockhash', [height]);
   }
 
-  /**
-   * Get the current block count
-   */
   async getBlockCount(): Promise<number> {
     return this.call<number>('getblockcount', []);
   }
 
-  /**
-   * Get best block hash
-   */
   async getBestBlockHash(): Promise<string> {
     return this.call<string>('getbestblockhash', []);
   }
 
-  /**
-   * Test connection to Zcash node
-   */
   async testConnection(): Promise<boolean> {
     try {
       await this.getBlockchainInfo();
@@ -250,9 +223,6 @@ export class ZcashRPCClient {
     }
   }
 
-  /**
-   * Get connection configuration (without sensitive data)
-   */
   getConfig(): Omit<ZcashRPCConfig, 'password'> {
     return {
       url: this.config.url,
@@ -264,5 +234,4 @@ export class ZcashRPCClient {
   }
 }
 
-// Export singleton instance
 export const zcashRPCClient = new ZcashRPCClient();

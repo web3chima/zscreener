@@ -4,8 +4,26 @@ import { priceService } from '../services/price-service.js';
 const router = Router();
 
 /**
- * GET /api/price/zec
+ * GET /api/price
  * Get current ZEC price with caching
+ */
+router.get('/', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const priceData = await priceService.getPrice();
+
+    res.json({
+      success: true,
+      data: priceData,
+      cached: Date.now() - priceData.cached_at < 60000, // Consider cached if less than 1 minute old
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/price/zec
+ * Alias for root
  */
 router.get('/zec', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

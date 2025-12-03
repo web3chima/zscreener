@@ -1,0 +1,18 @@
+# Use official Zcash image
+FROM electriccoinco/zcashd:latest
+
+# Switch to root to ensure we can set permissions
+USER root
+
+# Create configuration directory at the correct path
+RUN mkdir -p /srv/zcashd/.zcash && chmod 777 /srv/zcashd/.zcash
+
+# Copy startup script
+COPY start-zcash.sh /usr/local/bin/start-zcash.sh
+RUN chmod +x /usr/local/bin/start-zcash.sh
+
+# Expose RPC port (Testnet)
+EXPOSE 18232
+
+# Set ENTRYPOINT to override the base image's entrypoint
+ENTRYPOINT ["/usr/local/bin/start-zcash.sh"]

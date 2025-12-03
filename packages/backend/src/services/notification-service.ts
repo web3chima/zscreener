@@ -3,10 +3,34 @@ import { Server as HTTPServer } from 'http';
 import { authService } from './auth-service.js';
 import { AlertNotification } from '../types/alert.js';
 import axios from 'axios';
+import nodemailer from 'nodemailer';
 
 export class NotificationService {
   private io: SocketIOServer | null = null;
   private userSockets: Map<string, Set<string>> = new Map(); // userId -> Set of socket IDs
+  private emailTransporter: nodemailer.Transporter | null = null;
+
+  constructor() {
+    this.setupEmailTransporter();
+  }
+
+  private setupEmailTransporter() {
+    // Only setup if config is present
+    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+      this.emailTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      console.log('Email service initialized (SMTP)');
+    } else {
+      console.warn('SMTP configuration missing. Email notifications will fail if attempted.');
+    }
+  }
 
   /**
    * Initialize WebSocket server
@@ -210,25 +234,35 @@ export class NotificationService {
   }
 
   /**
-   * Send email notification
+   * Send email notification using Nodemailer
    */
   async sendEmailNotification(
     email: string,
     notification: AlertNotification
   ): Promise<boolean> {
+    if (!this.emailTransporter) {
+      console.error('Email transporter not configured. Cannot send email.');
+      return false;
+    }
+
     try {
-      // In production, integrate with email service (SendGrid, AWS SES, etc.)
       console.log(`Sending email notification to ${email}`);
-      console.log(`Subject: Alert Triggered - ${notification.notificationData.message}`);
-      console.log(`Body:`, notification.notificationData.details);
+      const subject = `Alert Triggered: ${notification.notificationData.message}`;
+      const text = `
+Alert Details:
+${JSON.stringify(notification.notificationData.details, null, 2)}
 
-      // Placeholder for actual email sending
-      // await emailService.send({
-      //   to: email,
-      //   subject: `Alert Triggered - ${notification.notificationData.message}`,
-      //   body: JSON.stringify(notification.notificationData.details, null, 2),
-      // });
+Triggered At: ${new Date(notification.triggeredAt).toISOString()}
+      `;
 
+      await this.emailTransporter.sendMail({
+        from: process.env.SMTP_FROM || '"Zscreener Alerts" <alerts@zscreener.com>',
+        to: email,
+        subject: subject,
+        text: text,
+      });
+
+      console.log(`Email sent successfully to ${email}`);
       return true;
     } catch (error) {
       console.error(`Failed to send email to ${email}:`, error);

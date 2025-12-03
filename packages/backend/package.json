@@ -25,7 +25,9 @@
     "db:reset": "tsx src/scripts/reset.ts"
   },
   "dependencies": {
+    "@bitgo/sdk-coin-zec": "^2.6.0",
     "axios": "^1.13.2",
+    "bitcore-lib-zcash": "^0.13.20",
     "bull": "^4.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.0",
@@ -39,7 +41,8 @@
     "node-pg-migrate": "^8.0.3",
     "pg": "^8.11.0",
     "socket.io": "^4.7.0",
-    "winston": "^3.9.0"
+    "winston": "^3.9.0",
+    "zcash-bitcore-lib": "^0.13.20-rc3"
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",

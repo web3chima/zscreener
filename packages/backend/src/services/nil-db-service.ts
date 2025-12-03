@@ -139,14 +139,8 @@ export class NilDBService {
         encryptionKeyId: keyId,
       };
     } catch (error) {
-      // In mock mode, we'll simulate successful storage
-      console.warn('Nil DB storage failed, using mock mode:', error);
-      return {
-        dataId,
-        userId,
-        storedAt: storagePayload.storedAt,
-        encryptionKeyId: keyId,
-      };
+      console.error('Nil DB storage failed:', error);
+      throw new Error(`Failed to store data in Nil DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -196,8 +190,8 @@ export class NilDBService {
         params: { userId },
       });
     } catch (error) {
-      console.warn('Nil DB deletion failed:', error);
-      // Don't throw error in mock mode
+      console.error('Nil DB deletion failed:', error);
+      throw new Error(`Failed to delete data from Nil DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -215,8 +209,8 @@ export class NilDBService {
 
       return response.data.dataIds || [];
     } catch (error) {
-      console.warn('Nil DB list failed:', error);
-      return [];
+      console.error('Nil DB list failed:', error);
+      throw new Error(`Failed to list data from Nil DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

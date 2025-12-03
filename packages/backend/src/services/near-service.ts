@@ -12,14 +12,10 @@ export interface NEARAccountInfo {
   blockHash: string;
 }
 
-export interface NEARTransaction {
-  hash: string;
-  signerId: string;
-  receiverId: string;
-  blockHash: string;
-  blockTimestamp: number;
-  actions: any[];
-  status: 'success' | 'failure';
+export interface ChainSignatureIntent {
+  payload: string; // The payload to be signed (e.g., Zcash tx hash)
+  path: string; // Derivation path for the key
+  key_version: number;
 }
 
 /**
@@ -27,6 +23,7 @@ export interface NEARTransaction {
  */
 export class NEARService {
   private connection: nearAPI.Near | null = null;
+  private mpcContractId: string = 'v1.signer-prod.testnet'; // Standard Testnet MPC contract
 
   /**
    * Initialize NEAR connection
@@ -52,6 +49,43 @@ export class NEARService {
   }
 
   /**
+   * Create a Cross-Chain Intent (Chain Signature)
+   * This prepares the arguments for calling the NEAR MPC contract to sign a Zcash transaction.
+   */
+  async createCrossChainIntent(
+    accountId: string,
+    zcashTxHash: string,
+    derivationPath: string = 'zcash-1'
+  ): Promise<any> {
+    // In a full implementation, this would send a transaction to the NEAR network.
+    // For this backend service, we verify the capability and return the instructions
+    // for the frontend or perform a view call to check fee requirements.
+
+    console.log(`Creating Cross-Chain Intent for ${accountId} -> Zcash Tx ${zcashTxHash}`);
+
+    try {
+      // Check if MPC contract is alive
+      await this.viewContractState(this.mpcContractId, 'public_key', {});
+
+      return {
+        intentId: `intent-${Date.now()}`,
+        status: 'ready_to_sign',
+        contractId: this.mpcContractId,
+        methodName: 'sign',
+        args: {
+          payload: Array.from(Buffer.from(zcashTxHash, 'hex')),
+          path: derivationPath,
+          key_version: 0
+        },
+        deposit: '0.05' // Estimated fee in NEAR
+      };
+    } catch (error) {
+       console.error('Failed to prepare cross-chain intent:', error);
+       throw new Error(`Failed to interact with NEAR MPC contract: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Get NEAR account information
    */
   async getAccountInfo(accountId: string): Promise<NEARAccountInfo> {
@@ -59,7 +93,6 @@ export class NEARService {
       const connection = await this.ensureConnection();
       const provider = connection.connection.provider;
       
-      // Query account state directly from provider
       const accountState: any = await provider.query({
         request_type: 'view_account',
         finality: 'final',
@@ -80,6 +113,8 @@ export class NEARService {
     }
   }
 
+  // ... (keep existing methods: accountExists, getAccountBalance, viewContractState, etc.)
+
   /**
    * Check if NEAR account exists
    */
@@ -88,14 +123,10 @@ export class NEARService {
       await this.getAccountInfo(accountId);
       return true;
     } catch (error) {
-      // Account doesn't exist or other error
       return false;
     }
   }
 
-  /**
-   * Get account balance in NEAR
-   */
   async getAccountBalance(accountId: string): Promise<string> {
     try {
       const accountInfo = await this.getAccountInfo(accountId);
@@ -106,9 +137,6 @@ export class NEARService {
     }
   }
 
-  /**
-   * View contract state
-   */
   async viewContractState(
     contractId: string,
     methodName: string,
@@ -131,9 +159,6 @@ export class NEARService {
     }
   }
 
-  /**
-   * Get network status
-   */
   async getNetworkStatus(): Promise<any> {
     try {
       const connection = await this.ensureConnection();
@@ -145,9 +170,6 @@ export class NEARService {
     }
   }
 
-  /**
-   * Get block information
-   */
   async getBlock(blockId: number | string): Promise<any> {
     try {
       const connection = await this.ensureConnection();
@@ -160,9 +182,6 @@ export class NEARService {
     }
   }
 
-  /**
-   * Get transaction status
-   */
   async getTransactionStatus(txHash: string, accountId: string): Promise<any> {
     try {
       const connection = await this.ensureConnection();
@@ -174,9 +193,6 @@ export class NEARService {
     }
   }
 
-  /**
-   * Query RPC directly for custom requests
-   */
   async queryRPC(method: string, params: any): Promise<any> {
     try {
       const connection = await this.ensureConnection();
@@ -191,15 +207,10 @@ export class NEARService {
     }
   }
 
-  /**
-   * Get connection instance for advanced operations
-   */
   async getConnection(): Promise<nearAPI.Near> {
     return this.ensureConnection();
   }
 }
 
-// Export singleton instance
 export const nearService = new NEARService();
-
 export default nearService;
